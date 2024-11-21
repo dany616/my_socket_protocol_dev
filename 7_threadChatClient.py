@@ -1,0 +1,73 @@
+#client ID BR TO Q
+import socket
+from threading import Thread
+import sys
+from datetime import datetime
+
+# server's IP address
+# if the server is not on this machine, 
+# put the private (network) IP address (e.g 192.168.1.2)
+SERVER_HOST = "127.0.0.1"
+SERVER_PORT = 10000 # server's port
+BUF_SIZE = 1024
+SEP = ":" # we will use this to separate the client name & message
+
+# initialize TCP socket
+s = socket.socket()
+print(f"[*] Connecting to {SERVER_HOST}:{SERVER_PORT}...")
+# connect to the server
+try:
+    s.connect((SERVER_HOST, SERVER_PORT))
+except Exception as e:
+    print("서버와 연결 종료_connect")
+    sys.exit()
+    
+print("서버와 연결")
+
+def listen_for_messages():  # receive 전용 Thread에서 수행하는 함수
+    while True:
+        try:
+            message = s.recv(BUF_SIZE).decode()
+            print("\n" + message)
+        except Exception as e:
+            print("서버와 연결 종료_recv")
+            return
+
+# make a thread that listens for messages to this client
+t = Thread(target=listen_for_messages)
+# make the thread daemon so it ends whenever the main thread ends
+t.daemon = True
+# start the thread
+t.start()
+
+# register of my ID to the Server
+myID = input("Enter your ID: ")
+
+to_Msg = "ID"+SEP+myID+SEP  # message format  ID:클라이언트ID:
+s.send(to_Msg.encode())
+print('사용법: 브로드캐스트하려면 BR:전달할 메시지 입력')
+print('      : 특정 사용자에 전달 하려면 TO:전달할 사용자ID:전달할 메시지 입력')
+print('      : 종료하려면 Q 입력')
+
+while True:
+    # input message we want to send to the server
+    msg =  input()
+    tokens = msg.split(SEP)
+    code = tokens[0]
+    # a way to exit the program
+    if code.upper() == 'Q':
+        to_Msg = "Quit"+SEP+myID+SEP
+        s.send(to_Msg.encode())
+        break
+    elif code.upper()  == "BR" :
+        to_Msg = code + SEP + myID + SEP + tokens[1] + SEP
+        s.send(to_Msg.encode())
+    elif code.upper() == "TO":
+        to_Msg = code + SEP + myID + SEP + tokens[1] + SEP + tokens[2] + SEP
+        s.send(to_Msg.encode())
+    to_Msg = ''  # to_Msg 내용 초기화 Initialization
+
+# close the socket
+s.shutdown(socket.SHUT_RDWR)
+s.close()
+print('종료')
