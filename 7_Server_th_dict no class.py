@@ -5,6 +5,7 @@
 from socket import *    
 from select import *
 from threading import Thread
+import os
 
 HOST = ''
 PORT = 10000
@@ -48,8 +49,29 @@ def msg_proc(cs, m):
             cs.close()
             print("Disconnected:{}", fromID)
             return False
+        elif (code.upper()  == "FILE"):
+            fromID = tokens[1]
+            toID = tokens[2]
+            file_name = tokens[3]
+            file_size = int(tokens[4])
+            print(f"파일 수신: {file_name} from {fromID} to {toID}, 크기: {file_size} 바이트")
+            
+            # 수신할 폴더 생성
+            if not os.path.exists('received_files'):
+                os.makedirs('received_files')
+            
+            with open(os.path.join('received_files', file_name), 'wb') as f:
+                bytes_received = 0
+                while bytes_received < file_size:
+                    bytes_data = cs.recv(BUFSIZE)
+                    if not bytes_data:
+                        break
+                    f.write(bytes_data)
+                    bytes_received += len(bytes_data)
+            print(f"파일 수신 완료: {file_name} 경로: received_files/{file_name}")
+            return True
     except Exception as e:
-        print(f"서버와 연결 종료")
+        print(f"서버와 연결 종료: {e}")
         return False
          
 def client_com(cs):
@@ -96,7 +118,7 @@ def client_acpt():
             tc.start()
             #threads.append(tc)
         except Exception as e:
-            print(f"accept 종료")
+            print(f"accept 종료: {e}")
             break
         
 client_acpt()
