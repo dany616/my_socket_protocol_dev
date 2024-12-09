@@ -24,6 +24,21 @@ except Exception as e:
     
 print("서버와 연결")
 
+# register of my ID to the Server
+myID = input("Enter your ID: ")
+
+to_Msg = "ID"+SEP+myID+SEP  # message format  ID:클라이언트ID:
+s.send(to_Msg.encode())
+
+# 사용법 안내 메시지를 한 번에 출력
+print('\n=== 채팅 프로그램 사용법 ===')
+print('1. 브로드캐스트: BR:전달할 메시지 입력')
+print('2. 특정 사용자 메시지: TO:전달할 사용자ID:전달할 메시지 입력')
+print('3. 파일 전송: FILE:전송될사용자ID:경로 입력')
+print('4. AI 채팅: AICHAT:질문내용 입력')
+print('5. 종료: Q 입력')
+print('========================\n')
+
 def listen_for_messages():  # receive 전용 Thread에서 수행하는 함수
     while True:
         try:
@@ -39,16 +54,6 @@ t = Thread(target=listen_for_messages)
 t.daemon = True
 # start the thread
 t.start()
-
-# register of my ID to the Server
-myID = input("Enter your ID: ")
-
-to_Msg = "ID"+SEP+myID+SEP  # message format  ID:클라이언트ID:
-s.send(to_Msg.encode())
-print('사용법: 브로드캐스트하려면 BR:전달할 메시지 입력')
-print('      : 특정 사용자에 전달 하려면 TO:전달할 사용자ID:전달할 메시지 입력')
-print('      : 파일 전송하려면 FILE:전송될사용자ID:경로 입력')
-print('      : 종료하려면 Q 입력')
 
 while True:
     # input message we want to send to the server
@@ -86,6 +91,13 @@ while True:
             print("파일 전송 완료")
         else:
             print("파일이 존재하지 않습니다.")
+    elif code.upper() == "AICHAT":
+        if len(tokens) < 2:
+            print("AI 채팅 형식이 잘못되었습니다.")
+            continue
+        question = tokens[1]
+        to_Msg = f"AICHAT{SEP}{myID}{SEP}{question}"
+        s.send(to_Msg.encode())
     to_Msg = ''  # to_Msg 내용 초기화 Initialization
 
 # close the socket

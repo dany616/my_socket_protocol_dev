@@ -6,6 +6,10 @@ from socket import *
 from select import *
 from threading import Thread
 import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 HOST = ''
 PORT = 10000
@@ -16,6 +20,23 @@ ADDR = (HOST, PORT)
 clientSockets = {}  #dictionary 생성 방법
 #threads = []
        
+# OpenAI 클라이언트 초기화
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.upstage.ai/v1/solar"
+)
+
+def get_ai_response(message):
+    try:
+        response = client.chat.completions.create(
+            model="solar-pro",
+            messages=[{"role": "user", "content": message}],
+            stream=False
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI 응답 오류: {str(e)}"
+
 def msg_proc(cs, m):
     global clientSockets
     tokens = m.split(':')
@@ -55,6 +76,8 @@ def msg_proc(cs, m):
             file_name = tokens[3]
             file_size = int(tokens[4])
             print(f"파일 수신: {file_name} from {fromID} to {toID}, 크기: {file_size} 바이트")
+
+        
             
             # 수신할 폴더 생성
             if not os.path.exists('received_files'):
@@ -69,6 +92,15 @@ def msg_proc(cs, m):
                     f.write(bytes_data)
                     bytes_received += len(bytes_data)
             print(f"파일 수신 완료: {file_name} 경로: received_files/{file_name}")
+            return True
+        elif (code.upper() == "AICHAT"):
+            fromID = tokens[1]
+            question = tokens[2]
+            print(f"AI 채팅 요청: {fromID} - {question}")
+            
+            ai_response = get_ai_response(question)
+            response_msg = f"AICHAT:{fromID}:AI 응답: {ai_response}"
+            cs.send(response_msg.encode())
             return True
     except Exception as e:
         print(f"서버와 연결 종료: {e}")
