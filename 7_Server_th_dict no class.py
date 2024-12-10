@@ -26,6 +26,9 @@ client = OpenAI(
     base_url="https://api.upstage.ai/v1/solar"
 )
 
+# 파일 상단에 전역 변수 추가
+chatRooms = {}  # {방이름: {'owner': 방장ID, 'members': set(멤버ID들)}}
+
 def get_ai_response(message):
     try:
         response = client.chat.completions.create(
@@ -101,6 +104,65 @@ def msg_proc(cs, m):
             ai_response = get_ai_response(question)
             response_msg = f"AICHAT:{fromID}:AI 응답: {ai_response}"
             cs.send(response_msg.encode())
+            return True
+        elif (code.upper() == "ROOM"):
+            fromID = tokens[1]
+            roomname = tokens[2]
+            action = tokens[3].upper()
+            
+            if action == "CREATE":
+                if roomname in chatRooms:
+                    cs.send(f"Error:방 '{roomname}'이 이미 존재합니다.".encode())
+                else:
+                    chatRooms[roomname] = {'owner': fromID, 'members': {fromID}}
+                    cs.send(f"Success:방 '{roomname}'이 생성되었습니다.".encode())
+            elif action == "JOIN":
+                if roomname not in chatRooms:
+                    cs.send(f"Error:방 '{roomname}'이 존재하지 않습니다.".encode())
+                else:
+                    chatRooms[roomname]['members'].add(fromID)
+                    cs.send(f"Success:방 '{roomname}'에 참여했습니다.".encode())
+            elif action == "LEAVE":
+                if roomname in chatRooms and fromID in chatRooms[roomname]['members']:
+                    chatRooms[roomname]['members'].remove(fromID)
+                    if len(chatRooms[roomname]['members']) == 0:
+                        del chatRooms[roomname]
+                    cs.send(f"Success:방 '{roomname}'에서 나갔습니다.".encode())
+                else:
+                    cs.send(f"Error:방 '{roomname}'에 속해있지 않습니다.".encode())
+            return True
+            
+        elif (code.upper() == "RMSG"):
+            roomname = tokens[1]
+            fromID = tokens[2]
+            message = tokens[3]
+            
+            if roomname in chatRooms and fromID in chatRooms[roomname]['members']:
+                room_message = f"RMSG:{roomname}:{fromID}:{message}"
+                for member_id in chatRooms[roomname]['members']:
+                    if member_id != fromID:
+                        clientSockets[member_id].send(room_message.encode())
+                cs.send("Success:방 메시지를 전송했습니다.".encode())
+            else:
+                cs.send(f"Error:방 '{roomname}'에 속해있지 않습니다.".encode())
+            return True
+            
+        elif (code.upper() == "RLIST"):
+            fromID = tokens[1]
+            room_list = "채팅방 목록:\n" + "\n".join([f"- {room} (멤버 수: {len(members['members'])})" 
+                                                for room, members in chatRooms.items()])
+            cs.send(room_list.encode())
+            return True
+            
+        elif (code.upper() == "RMEM"):
+            fromID = tokens[1]
+            roomname = tokens[2]
+            
+            if roomname in chatRooms:
+                member_list = f"방 '{roomname}' 멤버 목록:\n" + "\n".join(chatRooms[roomname]['members'])
+                cs.send(member_list.encode())
+            else:
+                cs.send(f"Error:방 '{roomname}'이 존재하지 않습니다.".encode())
             return True
     except Exception as e:
         print(f"서버와 연결 종료: {e}")
