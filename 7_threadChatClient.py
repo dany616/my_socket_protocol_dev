@@ -37,6 +37,12 @@ print('2. 특정 사용자 메시지: TO:전달할 사용자ID:전달할 메시�
 print('3. 파일 전송: FILE:전송될사용자ID:경로 입력')
 print('4. AI 채팅: AICHAT:질문내용 입력')
 print('5. 종료: Q 입력')
+print('6. 채팅방 생성: ROOM:CREATE:방이름 입력')
+print('7. 채팅방 참여: ROOM:JOIN:방이름 입력')
+print('8. 채팅방 나가기: ROOM:LEAVE:방이름 입력')
+print('9. 채팅방 메시지: RMSG:방이름:메시지 입력')
+print('10. 채팅방 목록: RLIST 입력')
+print('11. 채팅방 멤버 목록: RMEM:방이름 입력')
 print('========================\n')
 
 def listen_for_messages():  # receive 전용 Thread에서 수행하는 함수
@@ -97,6 +103,32 @@ while True:
             continue
         question = tokens[1]
         to_Msg = f"AICHAT{SEP}{myID}{SEP}{question}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "ROOM":
+        if len(tokens) != 3:
+            print("방 명령어 형식이 잘못되었습니다.")
+            continue
+        action = tokens[1]
+        roomname = tokens[2]
+        to_Msg = f"ROOM{SEP}{myID}{SEP}{roomname}{SEP}{action}{SEP}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "RMSG":
+        if len(tokens) != 3:
+            print("방 메시지 형식이 잘못되었습니다.")
+            continue
+        roomname = tokens[1]
+        message = tokens[2]
+        to_Msg = f"RMSG{SEP}{roomname}{SEP}{myID}{SEP}{message}{SEP}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "RLIST":
+        to_Msg = f"RLIST{SEP}{myID}{SEP}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "RMEM":
+        if len(tokens) != 2:
+            print("방 멤버 목록 요청 형식이 잘못되었습니다.")
+            continue
+        roomname = tokens[1]
+        to_Msg = f"RMEM{SEP}{myID}{SEP}{roomname}{SEP}"
         s.send(to_Msg.encode())
     to_Msg = ''  # to_Msg 내용 초기화 Initialization
 
