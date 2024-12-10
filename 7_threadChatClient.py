@@ -43,7 +43,16 @@ print('8. 채팅방 나가기: ROOM:LEAVE:방이름 입력')
 print('9. 채팅방 메시지: RMSG:방이름:메시지 입력')
 print('10. 채팅방 목록: RLIST 입력')
 print('11. 채팅방 멤버 목록: RMEM:방이름 입력')
+print('12. 대화 기록 조회: HISTORY:대상ID:날짜(YYYY-MM-DD) 입력')
+print('13. 채팅 내역 저장: EXPORT:시작일(YYYY-MM-DD):종료일(YYYY-MM-DD) 입력')
+print('14. 대화 내용 검색: SEARCH:검색어 입력')
 print('========================\n')
+
+# 폴더 생성
+if not os.path.exists('History_files'):
+    os.makedirs('History_files')
+if not os.path.exists('log_files'):
+    os.makedirs('log_files')
 
 def listen_for_messages():  # receive 전용 Thread에서 수행하는 함수
     while True:
@@ -129,6 +138,29 @@ while True:
             continue
         roomname = tokens[1]
         to_Msg = f"RMEM{SEP}{myID}{SEP}{roomname}{SEP}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "HISTORY":
+        if len(tokens) != 3:
+            print("대화 기록 조회 형식이 잘못되었습니다.")
+            continue
+        target = tokens[1]
+        date = tokens[2]
+        to_Msg = f"HISTORY{SEP}{myID}{SEP}{target}{SEP}{date}{SEP}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "EXPORT":
+        if len(tokens) != 3:
+            print("채팅 내역 저장 형식이 잘못되었습니다.")
+            continue
+        start_date = tokens[1]
+        end_date = tokens[2]
+        to_Msg = f"EXPORT{SEP}{myID}{SEP}{start_date}{SEP}{end_date}{SEP}"
+        s.send(to_Msg.encode())
+    elif code.upper() == "SEARCH":
+        if len(tokens) != 2:
+            print("검색 형식이 잘못되었습니다.")
+            continue
+        keyword = tokens[1]
+        to_Msg = f"SEARCH{SEP}{myID}{SEP}{keyword}{SEP}"
         s.send(to_Msg.encode())
     to_Msg = ''  # to_Msg 내용 초기화 Initialization
 
