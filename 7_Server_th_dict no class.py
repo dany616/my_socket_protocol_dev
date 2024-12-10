@@ -44,9 +44,11 @@ def get_ai_response(message):
         return f"AI 응답 오류: {str(e)}"
 
 def msg_proc(cs, m):
-    global clientSockets, chat_history
+    print(f"받은 메시지: {m}")  # 디버그용
     tokens = m.split(':')
+    print(f"토큰 개수: {len(tokens)}, 토큰: {tokens}")  # 디버그용
     code = tokens[0]
+    print(f"처리하는 명령어: {code}")  # 디버그용
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     try:
@@ -148,10 +150,13 @@ def msg_proc(cs, m):
             fromID = tokens[1]
             toID = tokens[2]
             toMsg = tokens[3]
-            print(f"1to1: From {1} To {2} Message {3}",fromID, toID, toMsg)
-            toSocket = clientSockets.get(toID)  # 전달할 ID의 소켓 값 꺼내오기
-            toSocket.send(m.encode())
-            cs.send("Success:1to1".encode())
+            print(f"1to1: From {fromID} To {toID} Message {toMsg}")
+            toSocket = clientSockets.get(toID)  
+            if toSocket:  # 수신자가 존재하는지 확인
+                toSocket.send(m.encode())
+                cs.send("Success:1to1".encode())
+            else:
+                cs.send("Error:수신자가 존재하지 않습니다.".encode())
             return True
         elif (code.upper()  == "BR"):
             print('broadcast data: ', m)
