@@ -50,6 +50,43 @@ def msg_proc(cs, m):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     try:
+        if (code.upper() == "ID"):
+            print('reg id: ',m)
+            clientSockets[tokens[1]] = cs   # client ID와 client 소켓값 저장
+            cs.send("Success:Reg_ID".encode())
+            return True
+        elif (code.upper()  == "TO"):        
+            fromID = tokens[1]
+            toID = tokens[2]
+            toMsg = tokens[3]
+            print(f"1to1: From {1} To {2} Message {3}",fromID, toID, toMsg)
+            toSocket = clientSockets.get(toID)  # 전달할 ID의 소켓 값 꺼내오기
+            toSocket.send(m.encode())
+            cs.send("Success:1to1".encode())
+            return True
+        elif (code.upper()  == "BR"):
+            print('broadcast data: ', m)
+            for socket in clientSockets.values(): # broadcast하기 위해 모든 소켓값 꺼내오기
+                if (cs == socket):
+                    cs.send("Success:BR".encode())
+                else:
+                    socket.send(m.encode())
+            return True
+        elif (code.upper()  == "QUIT"):
+            fromID = tokens[1]
+            clientSockets.pop(fromID)  #종료한 client 제거
+            cs.close()
+            print("Disconnected:{}", fromID)
+            return False
+        elif (code.upper()  == "FILE"):
+            fromID = tokens[1]
+            toID = tokens[2]
+            file_name = tokens[3]
+            file_size = int(tokens[4])
+            print(f"파일 수신: {file_name} from {fromID} to {toID}, 크기: {file_size} 바이트")
+
+
+
         # 기존 메시지 처리 코드에서 채팅 기록 저장 추가
         if code.upper() in ["TO", "BR", "RMSG"]:
             chat_log = {
@@ -139,41 +176,7 @@ def msg_proc(cs, m):
             cs.send(response.encode())
             return True
 
-        elif (code.upper() == "ID"):
-            print('reg id: ',m)
-            clientSockets[tokens[1]] = cs   # client ID와 client 소켓값 저장
-            cs.send("Success:Reg_ID".encode())
-            return True
-        elif (code.upper()  == "TO"):        
-            fromID = tokens[1]
-            toID = tokens[2]
-            toMsg = tokens[3]
-            print(f"1to1: From {1} To {2} Message {3}",fromID, toID, toMsg)
-            toSocket = clientSockets.get(toID)  # 전달할 ID의 소켓 값 꺼내오기
-            toSocket.send(m.encode())
-            cs.send("Success:1to1".encode())
-            return True
-        elif (code.upper()  == "BR"):
-            print('broadcast data: ', m)
-            for socket in clientSockets.values(): # broadcast하기 위해 모든 소켓값 꺼내오기
-                if (cs == socket):
-                    cs.send("Success:BR".encode())
-                else:
-                    socket.send(m.encode())
-            return True
-        elif (code.upper()  == "QUIT"):
-            fromID = tokens[1]
-            clientSockets.pop(fromID)  #종료한 client 제거
-            cs.close()
-            print("Disconnected:{}", fromID)
-            return False
-        elif (code.upper()  == "FILE"):
-            fromID = tokens[1]
-            toID = tokens[2]
-            file_name = tokens[3]
-            file_size = int(tokens[4])
-            print(f"파일 수신: {file_name} from {fromID} to {toID}, 크기: {file_size} 바이트")
-
+        
         
             
             # 수신할 폴더 생성
