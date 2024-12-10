@@ -8,6 +8,8 @@ from threading import Thread
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
+from datetime import datetime
+import json
 
 load_dotenv()
 
@@ -28,6 +30,7 @@ client = OpenAI(
 
 # 파일 상단에 전역 변수 추가
 chatRooms = {}  # {방이름: {'owner': 방장ID, 'members': set(멤버ID들)}}
+chat_history = []  # 채팅 기록을 저장할 리스트
 
 def get_ai_response(message):
     try:
@@ -41,11 +44,102 @@ def get_ai_response(message):
         return f"AI 응답 오류: {str(e)}"
 
 def msg_proc(cs, m):
-    global clientSockets
+    global clientSockets, chat_history
     tokens = m.split(':')
     code = tokens[0]
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     try:
-        if (code.upper() == "ID"):
+        # 기존 메시지 처리 코드에서 채팅 기록 저장 추가
+        if code.upper() in ["TO", "BR", "RMSG"]:
+            chat_log = {
+                "timestamp": current_time,
+                "type": code.upper(),
+                "from": tokens[1],
+                "content": tokens[-2] if code.upper() == "TO" else tokens[-1],
+                "to": tokens[2] if code.upper() == "TO" else "ALL"
+            }
+            chat_history.append(chat_log)
+            
+            # 로그 파일에 저장
+            with open(f'log_files/chat_log_{datetime.now().strftime("%Y-%m-%d")}.json', 'a', encoding='utf-8') as f:
+                json.dump(chat_log, f, ensure_ascii=False)
+                f.write('\n')
+
+        # 새로운 명령어 처리
+        elif (code.upper() == "HISTORY"):
+            fromID = tokens[1]
+            targetID = tokens[2]
+            date = tokens[3]
+            
+            matching_logs = []
+            log_file = f'log_files/chat_log_{date}.json'
+            
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        log = json.loads(line)
+                        if (log['from'] == targetID and log['to'] in [fromID, "ALL"]) or \
+                           (log['from'] == fromID and log['to'] == targetID):
+                            matching_logs.append(f"[{log['timestamp']}] {log['from']} -> {log['to']}: {log['content']}")
+                
+                response = "\n".join(matching_logs) if matching_logs else "해당 날짜의 대화 기록이 없습니다."
+            else:
+                response = "해당 날짜의 로그 파일이 없습니다."
+            
+            cs.send(response.encode())
+            return True
+            
+        elif (code.upper() == "EXPORT"):
+            fromID = tokens[1]
+            start_date = datetime.strptime(tokens[2], "%Y-%m-%d")
+            end_date = datetime.strptime(tokens[3], "%Y-%m-%d")
+            
+            export_logs = []
+            current_date = start_date
+            while current_date <= end_date:
+                date_str = current_date.strftime("%Y-%m-%d")
+                log_file = f'log_files/chat_log_{date_str}.json'
+                
+                if os.path.exists(log_file):
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            log = json.loads(line)
+                            if log['from'] == fromID or log['to'] in [fromID, "ALL"]:
+                                export_logs.append(log)
+                
+                current_date = current_date.replace(day=current_date.day + 1)
+            
+            if export_logs:
+                export_file = f'History_files/chat_history_{fromID}_{tokens[2]}_{tokens[3]}.json'
+                with open(export_file, 'w', encoding='utf-8') as f:
+                    json.dump(export_logs, f, ensure_ascii=False, indent=2)
+                cs.send(f"채팅 내역이 {export_file}에 저장되었습니다.".encode())
+            else:
+                cs.send("해당 기간의 대화 내역이 없습니다.".encode())
+            return True
+            
+        elif (code.upper() == "SEARCH"):
+            fromID = tokens[1]
+            keyword = tokens[2]
+            
+            search_results = []
+            for filename in os.listdir('log_files'):
+                if filename.startswith('chat_log_'):
+                    with open(f'log_files/{filename}', 'r', encoding='utf-8') as f:
+                        for line in f:
+                            log = json.loads(line)
+                            if keyword in log['content'] and \
+                               (log['from'] == fromID or log['to'] in [fromID, "ALL"]):
+                                search_results.append(
+                                    f"[{log['timestamp']}] {log['from']} -> {log['to']}: {log['content']}"
+                                )
+            
+            response = "\n".join(search_results) if search_results else "검색 결과가 없습니다."
+            cs.send(response.encode())
+            return True
+
+        elif (code.upper() == "ID"):
             print('reg id: ',m)
             clientSockets[tokens[1]] = cs   # client ID와 client 소켓값 저장
             cs.send("Success:Reg_ID".encode())
